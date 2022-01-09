@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  vulkan_context_android.cpp                                           */
+/*  register_types.cpp                                                   */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,42 +28,10 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#include "vulkan_context_android.h"
+#include "register_types.h"
 
-#ifdef USE_VOLK
-#include <volk.h>
-#else
-#include <vulkan/vulkan.h>
-#endif
-
-const char *VulkanContextAndroid::_get_platform_surface_extension() const {
-	return VK_KHR_ANDROID_SURFACE_EXTENSION_NAME;
+void register_swappy_types() {
 }
 
-void VulkanContextAndroid::prepare_swappy_extension() const {
-	// do stuff
-}
-
-int VulkanContextAndroid::window_create(ANativeWindow *p_window, DisplayServer::VSyncMode p_vsync_mode, int p_width, int p_height) {
-	VkAndroidSurfaceCreateInfoKHR createInfo;
-	createInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
-	createInfo.pNext = nullptr;
-	createInfo.flags = 0;
-	createInfo.window = p_window;
-
-	VkSurfaceKHR surface;
-	VkResult err = vkCreateAndroidSurfaceKHR(get_instance(), &createInfo, nullptr, &surface);
-	if (err != VK_SUCCESS) {
-		ERR_FAIL_V_MSG(-1, "vkCreateAndroidSurfaceKHR failed with error " + itos(err));
-	}
-
-	return _window_create(DisplayServer::MAIN_WINDOW_ID, p_vsync_mode, surface, p_width, p_height);
-}
-
-bool VulkanContextAndroid::_use_validation_layers() {
-	uint32_t count = 0;
-	_get_preferred_validation_layers(&count, nullptr);
-
-	// On Android, we use validation layers automatically if they were explicitly linked with the app.
-	return count > 0;
+void unregister_swappy_types() {
 }
