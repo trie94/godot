@@ -37,7 +37,6 @@ struct ANativeWindow;
 
 class VulkanContextAndroid : public VulkanContext {
 	virtual const char *_get_platform_surface_extension() const override;
-	void prepare_swappy_extension() const;
 
 public:
 	int window_create(ANativeWindow *p_window, DisplayServer::VSyncMode p_vsync_mode, int p_width, int p_height);

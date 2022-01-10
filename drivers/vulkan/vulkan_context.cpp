@@ -35,6 +35,7 @@
 #include "core/string/ustring.h"
 #include "core/version.h"
 #include "servers/rendering/rendering_device.h"
+#include "thirdparty/swappy/include/swappy/swappyVk.h"
 
 #include "vk_enum_string_helper.h"
 
@@ -339,12 +340,45 @@ Error VulkanContext::_initialize_extensions() {
 			if (!strcmp(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME, instance_extensions[i].extensionName)) {
 				extension_names[enabled_extension_count++] = VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME;
 			}
+
 			if (enabled_extension_count >= MAX_EXTENSIONS) {
 				free(instance_extensions);
 				ERR_FAIL_V_MSG(ERR_BUG, "Enabled extension count reaches MAX_EXTENSIONS, BUG");
 			}
 		}
+		print_verbose("SWAPPY before use Swappy");
+#ifdef USE_SWAPPY
+		// prepare Swappy here
+		print_verbose("SWAPPY use Swappy");
+		if (VK_GOOGLE_display_timing_enabled) {
+			print_verbose("SWAPPY VK_GOOGLE enabled");
+			uint32_t swappy_required_extension_count = 0;
+			SwappyVk_determineDeviceExtensions(
+				gpu, enabled_extension_count, instance_extensions, &swappy_required_extension_count, nullptr
+			);
+			print_verbose("SWAPPY extension count: " + itos(swappy_required_extension_count));
 
+			if (swappy_required_extension_count > 0) {
+				char** swappy_required_extension_names = (char**)malloc(sizeof(char*) * swappy_required_extension_count);
+				SwappyVk_determineDeviceExtensions(
+					gpu, enabled_extension_count, instance_extensions, &swappy_required_extension_count, swappy_required_extension_names
+				);
+
+				for (uint32_t i=0; i<swappy_required_extension_count; i++) {
+					extension_names[enabled_extension_count++] = swappy_required_extension_names[i];
+					print_verbose("SWAPPY adding extension name: " + String(swappy_required_extension_names[i]));
+
+					if (enabled_extension_count >= MAX_EXTENSIONS) {
+						free(instance_extensions);
+						free(extension_names);
+						ERR_FAIL_V_MSG(ERR_BUG, "Enabled extension count reaches MAX_EXTENSIONS, BUG");
+					}
+				}
+
+				free(extension_names);
+			}
+		}
+#endif
 		free(instance_extensions);
 	}
 
