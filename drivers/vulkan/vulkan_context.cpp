@@ -35,14 +35,18 @@
 #include "core/string/ustring.h"
 #include "core/version.h"
 #include "servers/rendering/rendering_device.h"
-#include "thirdparty/swappy/include/swappy/swappyVk.h"
-
 #include "vk_enum_string_helper.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
+
+#ifdef USE_SWAPPY
+#include <modules/gdnative/include/android/godot_android.h>
+#include "platform/android/os_android.h"
+#include "thirdparty/swappy/include/swappy/swappyVk.h"
+#endif
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 #define APP_SHORT_NAME "GodotEngine"
@@ -374,7 +378,7 @@ Error VulkanContext::_initialize_extensions() {
 						ERR_FAIL_V_MSG(ERR_BUG, "Enabled extension count reaches MAX_EXTENSIONS, BUG");
 					}
 				}
-
+				swappy_prepared = true;
 				free(extension_names);
 			}
 		}
@@ -1140,7 +1144,13 @@ Error VulkanContext::_initialize_queues(VkSurfaceKHR p_surface) {
 	} else {
 		vkGetDeviceQueue(device, present_queue_family_index, 0, &present_queue);
 	}
-
+#ifdef USE_SWAPPY
+	// identify queue family for Swappy
+	if (swappy_prepared) {
+		SwappyVk_setQueueFamilyIndex(device, present_queue, graphics_queue_family_index);
+		print_verbose("SWAPPY set queue family");
+	}
+#endif
 	// Get the list of VkFormat's that are supported:
 	uint32_t formatCount;
 	VkResult err = fpGetPhysicalDeviceSurfaceFormatsKHR(gpu, p_surface, &formatCount, nullptr);
@@ -1270,6 +1280,7 @@ Error VulkanContext::_window_create(DisplayServer::WindowID p_window_id, Display
 	window.width = p_width;
 	window.height = p_height;
 	window.vsync_mode = p_vsync_mode;
+
 	Error err = _update_swap_chain(&window);
 	ERR_FAIL_COND_V(err != OK, ERR_CANT_CREATE);
 
@@ -1336,7 +1347,10 @@ Error VulkanContext::_clean_up_swap_chain(Window *window) {
 		return OK;
 	}
 	vkDeviceWaitIdle(device);
-
+#ifdef USE_SWAPPY
+	SwappyVk_destroySwapchain(device, window->swapchain);
+	print_verbose("SWAPPY destroy swapchain");
+#endif
 	//this destroys images associated it seems
 	fpDestroySwapchainKHR(device, window->swapchain, nullptr);
 	window->swapchain = VK_NULL_HANDLE;
@@ -1719,7 +1733,18 @@ Error VulkanContext::_update_swap_chain(Window *window) {
 
 	//reset current buffer
 	window->current_buffer = 0;
-
+#ifdef USE_SWAPPY
+	SwappyVk_setWindow(device, window->swapchain, OS_Android::get_singleton()->get_native_window());
+	print_verbose("SWAPPY set window");
+    uint64_t refresh_duration = 0;
+	if (SwappyVk_initAndGetRefreshCycleDuration(
+		godot_android_get_env(), godot_android_get_activity(), get_physical_device(), device, window->swapchain, &refresh_duration
+	)) {
+		print_verbose("SWAPPY SWAPPY!!!!");
+		print_verbose("SWAPPY updated swapchain");
+		print_verbose("SWAPPY refresh duration: " + itos(refresh_duration));
+	}
+#endif
 	return OK;
 }
 
@@ -2045,7 +2070,10 @@ Error VulkanContext::swap_buffers() {
 	total_frames++;
 	//	print_line("current buffer:  " + itos(current_buffer));
 	err = fpQueuePresentKHR(present_queue, &present);
-
+#ifdef USE_SWAPPY
+	SwappyVk_queuePresent(present_queue, &present);
+	print_verbose("SWAPPY queue present");
+#endif
 	frame_index += 1;
 	frame_index %= FRAME_LAG;
 

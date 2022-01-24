@@ -25,12 +25,24 @@
 
 #include "Log.h"
 
-// This data comes from a binary resource linked to the library.
-// It contains Java classes compressed into DEX format for dynamic loading.
+// The code in this file will dynamically load Java classes from a binary
+// resource linked to the library. The binary data is in DEX format, accessible
+// using the _binary_classes_dex_start and _binary_classes_dex_end linker
+// symbols.
+
+// If you make AGDK classes available on the Java classpath, e.g. by adding them
+// to your game/engine's own Java component, you do not need to add the binary
+// resource and can instead define ANDROIDGAMESDK_NO_BINARY_DEX_LINKAGE which
+// will avoid the linker requiring these symbols.
+
+#ifndef ANDROIDGAMESDK_NO_BINARY_DEX_LINKAGE
 extern const char _binary_classes_dex_start;
 extern const char _binary_classes_dex_end;
+#endif
 
 namespace gamesdk {
+
+#ifndef ANDROIDGAMESDK_NO_BINARY_DEX_LINKAGE
 
 static bool saveBytesToFile(std::string fileName, const char* bytes,
                             size_t size) {
@@ -93,6 +105,8 @@ static bool createTempFile(JNIEnv* env, jobject activity, const char* ext,
     return result;
 }
 
+#endif  // #ifndef ANDROIDGAMESDK_NO_BINARY_DEX_LINKAGE
+
 static jclass loadClass(JNIEnv* env, jobject activity, const char* name,
                         JNINativeMethod* nativeMethods,
                         size_t nativeMethodsSize) {
@@ -119,6 +133,12 @@ static jclass loadClass(JNIEnv* env, jobject activity, const char* name,
     if (env->ExceptionCheck()) {
         env->ExceptionClear();
 
+#ifdef ANDROIDGAMESDK_NO_BINARY_DEX_LINKAGE
+        ALOGE(
+            "Couldn't find class %s and ANDROIDGAMESDK_NO_BINARY_DEX_LINKAGE "
+            "is defined",
+            name);
+#else
         jstring dexLoaderClassName =
             env->NewStringUTF("dalvik/system/InMemoryDexClassLoader");
         jclass imclassloaderClass = static_cast<jclass>(env->CallObjectMethod(
@@ -210,6 +230,7 @@ static jclass loadClass(JNIEnv* env, jobject activity, const char* name,
         if (imclassloaderClass) {
             env->DeleteLocalRef(imclassloaderClass);
         }
+#endif  // #ifdef ANDROIDGAMESDK_NO_BINARY_DEX_LINKAGE
     }
     env->DeleteLocalRef(className);
     return targetClass;

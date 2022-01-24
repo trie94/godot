@@ -89,6 +89,7 @@ private:
 	VkDevice device = VK_NULL_HANDLE;
 	bool device_initialized = false;
 	bool inst_initialized = false;
+	bool swappy_prepared = false;
 
 	// Vulkan 1.0 doesn't return version info so we assume this by default until we know otherwise
 	uint32_t vulkan_major = 1;

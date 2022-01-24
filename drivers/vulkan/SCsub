@@ -22,6 +22,8 @@ elif env["platform"] == "osx":
     env.AppendUnique(CPPDEFINES=["VK_USE_PLATFORM_MACOS_MVK"])
 elif env["platform"] == "windows":
     env.AppendUnique(CPPDEFINES=["VK_USE_PLATFORM_WIN32_KHR"])
+if env["module_gdnative_enabled"]:
+    env.Append(CPPPATH=["#modules/gdnative/include"])
 
 # Build Vulkan memory allocator and volk
 env_thirdparty_vma = env.Clone()
@@ -39,14 +41,12 @@ elif env["platform"] == "android":
     # Our current NDK version only provides old Vulkan headers,
     # so we have to limit VMA.
     env_thirdparty_vma.AppendUnique(CPPDEFINES=["VMA_VULKAN_VERSION=1000000"])
-if env["use_swappy"]:
-    SConscript("#thirdparty/swappy/SCsub")
+    if env["use_swappy"]:
+        SConscript("#thirdparty/swappy/SCsub")
 
 env_thirdparty_vma.add_source_files(thirdparty_obj, thirdparty_sources_vma)
 
-
 env.drivers_sources += thirdparty_obj
-
 
 # Godot source files
 
