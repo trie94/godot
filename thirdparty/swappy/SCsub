@@ -43,19 +43,9 @@ env_swappy.Append(CPPPATH=[thirdparty_dir + "../include"])
 env_swappy.Prepend(CPPPATH=[thirdparty_dir])
 
 env.Append(CPPPATH=[thirdparty_dir + "../include"])
-if env["platform"] == "android":
-    env.AppendUnique(CPPDEFINES=["USE_SWAPPY"])
 env_swappy.Append(CCFLAGS=["-DANDROIDGAMESDK_NO_BINARY_DEX_LINKAGE"])
-
 
 env_swappy.disable_warnings()
 env_swappy.add_source_files(thirdparty_obj, thirdparty_sources)
 
-# classes_dex = "#platform/android/java/app/build/intermediates/dex/release/mergeDexRelease/classes.dex"
-# env_classes_dex = env.Clone()
-# env_swappy.Append(LINKFLAGS=["-DANDROIDGAMESDK_NO_BINARY_DEX_LINKAGE"])
-# lib = env_classes_dex.add_library("#bin/classes_dex.o", classes_dex)
-# env_swappy.Depends(thirdparty_obj, lib)
-# env.Prepend(LIBS=[lib])
-# env.drivers_sources += lib
 env.drivers_sources += thirdparty_obj

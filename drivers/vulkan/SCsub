@@ -5,6 +5,7 @@ Import("env")
 thirdparty_obj = []
 thirdparty_dir = "#thirdparty/vulkan"
 thirdparty_volk_dir = "#thirdparty/volk"
+thirdparty_swappy_dir = "#thirdparty/swappy/include"
 
 # Use bundled Vulkan headers
 env.Prepend(CPPPATH=[thirdparty_dir, thirdparty_dir + "/include"])
@@ -14,6 +15,8 @@ if env["use_volk"]:
     env.Prepend(CPPPATH=[thirdparty_volk_dir])
 if env["platform"] == "android":
     env.AppendUnique(CPPDEFINES=["VK_USE_PLATFORM_ANDROID_KHR"])
+    env.AppendUnique(CPPDEFINES=["USE_SWAPPY"])
+    env.Prepend(CPPPATH=[thirdparty_swappy_dir])
 elif env["platform"] == "iphone":
     env.AppendUnique(CPPDEFINES=["VK_USE_PLATFORM_IOS_MVK"])
 elif env["platform"] == "linuxbsd":
@@ -41,8 +44,9 @@ elif env["platform"] == "android":
     # Our current NDK version only provides old Vulkan headers,
     # so we have to limit VMA.
     env_thirdparty_vma.AppendUnique(CPPDEFINES=["VMA_VULKAN_VERSION=1000000"])
-    if env["use_swappy"]:
-        SConscript("#thirdparty/swappy/SCsub")
+
+if env["platform"] == "android" and env["use_swappy"]:
+    SConscript("#thirdparty/swappy/SCsub")
 
 env_thirdparty_vma.add_source_files(thirdparty_obj, thirdparty_sources_vma)
 
