@@ -801,7 +801,6 @@ Error VulkanContext::_create_physical_device() {
 
 		for (uint32_t i = 0; i < device_extension_count; i++) {
 			if (!strcmp(VK_KHR_SWAPCHAIN_EXTENSION_NAME, device_extensions[i].extensionName)) {
-				print_verbose("SWAPPY swapchain extension found");
 				swapchainExtFound = 1;
 				extension_names[enabled_extension_count++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
 			}
@@ -815,9 +814,9 @@ Error VulkanContext::_create_physical_device() {
 			}
 		}
 
-	print_verbose("SWAPPY before USE SWAPPY");
 	#ifdef USE_SWAPPY
 		// prepare Swappy here
+		swappy_prepared = false;
 		print_verbose("SWAPPY use Swappy");
 		uint32_t swappy_required_extension_count = 0;
 		SwappyVk_determineDeviceExtensions(
@@ -826,42 +825,35 @@ Error VulkanContext::_create_physical_device() {
 		print_verbose("SWAPPY extension count: " + itos(swappy_required_extension_count));
 
 		if (swappy_required_extension_count > 0) {
-			print_verbose("SWAPPY swappy_required_extension_count is more than 0");
-			print_verbose("SWAPPY device extensions " + itos((int64_t)device_extensions));
-			print_verbose("SWAPPY gpu " + itos((int64_t)gpu));
-			
 			char** swappy_required_extension_names = (char**)malloc(sizeof(char*) * swappy_required_extension_count);
 			for (uint32_t i=0; i<swappy_required_extension_count; i++) {
 				swappy_required_extension_names[i] = (char*)malloc(VK_MAX_EXTENSION_NAME_SIZE);
 			}
-			print_verbose("SWAPPY swappy_required_extension_names " + itos((int64_t)swappy_required_extension_names));
-
 			SwappyVk_determineDeviceExtensions(
 				gpu, device_extension_count, device_extensions, &swappy_required_extension_count, swappy_required_extension_names
 			);
-			print_verbose("SWAPPY after SwappyVk_determineDeviceExtensions");
-			for (uint32_t i=0; i<swappy_required_extension_count; i++) {
-				print_verbose("SWAPPY inside for loop");
-				extension_names[enabled_extension_count++] = swappy_required_extension_names[i];
-				print_verbose("SWAPPY adding extension name: " + String(swappy_required_extension_names[i]));
-
-				if (enabled_extension_count >= MAX_EXTENSIONS) {
-					for (uint32_t i=0; i<swappy_required_extension_count; i++) {
-						free(swappy_required_extension_names[i]);
+			for (uint32_t i = 0; i < device_extension_count; i++) {
+				for (uint32_t j = 0; j < swappy_required_extension_count; j++) {
+					if (!strcmp(device_extensions[i].extensionName, swappy_required_extension_names[j])) {
+						print_verbose("SWAPPY add swappy extension");
+						// TODO: Free this string later
+						extension_names[enabled_extension_count++] = swappy_required_extension_names[j];
+						print_verbose("SWAPPY adding extension name: " + String(swappy_required_extension_names[j]));
 					}
-					free(swappy_required_extension_names);
-					free(device_extensions);
-					ERR_FAIL_V_MSG(ERR_BUG, "Enabled extension count reaches MAX_EXTENSIONS, BUG");
-				}
-			}
 
-			for (uint32_t i=0; i<swappy_required_extension_count; i++) {
-				free(swappy_required_extension_names[i]);
+					if (enabled_extension_count >= MAX_EXTENSIONS) {
+						for (uint32_t j = 0; j < swappy_required_extension_count; j++) {
+							free(swappy_required_extension_names[j]);
+						}
+						free(swappy_required_extension_names);
+						free(device_extensions);
+						ERR_FAIL_V_MSG(ERR_BUG, "Enabled extension count reaches MAX_EXTENSIONS, BUG");
+					}
+				}
 			}
 			free(swappy_required_extension_names);
 			swappy_prepared = true;
 			print_verbose("SWAPPY swappy prepared");
-			// free(extension_names);
 		}
 	#endif
 
@@ -882,7 +874,7 @@ Error VulkanContext::_create_physical_device() {
 				}
 			}
 		}
-
+    #ifndef USE_SWAPPY
 		if (VK_GOOGLE_display_timing_enabled) {
 			// Even though the user "enabled" the extension via the command
 			// line, we must make sure that it's enumerated for use with the
@@ -900,8 +892,10 @@ Error VulkanContext::_create_physical_device() {
 				}
 			}
 		}
-
+		print_verbose("SWAPPY we should not see this");
+    #endif
 		free(device_extensions);
+		print_verbose("SWAPPY done with device extensions!");
 	}
 
 	ERR_FAIL_COND_V_MSG(!swapchainExtFound, ERR_CANT_CREATE,
@@ -1163,13 +1157,13 @@ Error VulkanContext::_initialize_queues(VkSurfaceKHR p_surface) {
 	} else {
 		vkGetDeviceQueue(device, present_queue_family_index, 0, &present_queue);
 	}
-// #ifdef USE_SWAPPY
-// 	// identify queue family for Swappy
-// 	if (swappy_prepared) {
-// 		SwappyVk_setQueueFamilyIndex(device, present_queue, graphics_queue_family_index);
-// 		print_verbose("SWAPPY set queue family");
-// 	}
-// #endif
+#ifdef USE_SWAPPY
+	// identify queue family for Swappy
+	if (swappy_prepared) {
+		SwappyVk_setQueueFamilyIndex(device, present_queue, graphics_queue_family_index);
+		print_verbose("SWAPPY set queue family");
+	}
+#endif
 	// Get the list of VkFormat's that are supported:
 	uint32_t formatCount;
 	VkResult err = fpGetPhysicalDeviceSurfaceFormatsKHR(gpu, p_surface, &formatCount, nullptr);
@@ -1366,10 +1360,12 @@ Error VulkanContext::_clean_up_swap_chain(Window *window) {
 		return OK;
 	}
 	vkDeviceWaitIdle(device);
-// #ifdef USE_SWAPPY
-// 	SwappyVk_destroySwapchain(device, window->swapchain);
-// 	print_verbose("SWAPPY destroy swapchain");
-// #endif
+#ifdef USE_SWAPPY
+	if (swappy_prepared) {
+		SwappyVk_destroySwapchain(device, window->swapchain);
+		print_verbose("SWAPPY destroy swapchain");
+	}
+#endif
 	//this destroys images associated it seems
 	fpDestroySwapchainKHR(device, window->swapchain, nullptr);
 	window->swapchain = VK_NULL_HANDLE;
@@ -1752,18 +1748,21 @@ Error VulkanContext::_update_swap_chain(Window *window) {
 
 	//reset current buffer
 	window->current_buffer = 0;
-// #ifdef USE_SWAPPY
-// 	SwappyVk_setWindow(device, window->swapchain, OS_Android::get_singleton()->get_native_window());
-// 	print_verbose("SWAPPY set window");
-//     uint64_t refresh_duration = 0;
-// 	if (SwappyVk_initAndGetRefreshCycleDuration(
-// 		godot_android_get_env(), godot_android_get_activity(), get_physical_device(), device, window->swapchain, &refresh_duration
-// 	)) {
-// 		print_verbose("SWAPPY SWAPPY!!!!");
-// 		print_verbose("SWAPPY updated swapchain");
-// 		print_verbose("SWAPPY refresh duration: " + itos(refresh_duration));
-// 	}
-// #endif
+#ifdef USE_SWAPPY
+	if (swappy_prepared) {
+		SwappyVk_setWindow(device, window->swapchain, OS_Android::get_singleton()->get_native_window());
+		print_verbose("SWAPPY set window");
+		uint64_t refresh_duration = 0;
+		if (SwappyVk_initAndGetRefreshCycleDuration(
+			godot_android_get_env(), godot_android_get_activity(), get_physical_device(), device, window->swapchain, &refresh_duration
+		)) {
+			SwappyVk_setSwapIntervalNS(device, window->swapchain, refresh_duration);
+			print_verbose("SWAPPY SWAPPY!!!!");
+			print_verbose("SWAPPY updated swapchain");
+			print_verbose("SWAPPY refresh duration: " + itos(refresh_duration));
+		}
+	}
+#endif
 	return OK;
 }
 
@@ -2088,11 +2087,18 @@ Error VulkanContext::swap_buffers() {
 	static int total_frames = 0;
 	total_frames++;
 	//	print_line("current buffer:  " + itos(current_buffer));
+#ifdef USE_SWAPPY
+	if (swappy_prepared) {
+		err = SwappyVk_queuePresent(present_queue, &present);
+		print_verbose("SWAPPY queue present");
+	} else {
+		err = fpQueuePresentKHR(present_queue, &present);
+	}
+#endif
+#ifndef USE_SWAPPY
 	err = fpQueuePresentKHR(present_queue, &present);
-// #ifdef USE_SWAPPY
-// 	SwappyVk_queuePresent(present_queue, &present);
-// 	print_verbose("SWAPPY queue present");
-// #endif
+#endif
+
 	frame_index += 1;
 	frame_index %= FRAME_LAG;
 
