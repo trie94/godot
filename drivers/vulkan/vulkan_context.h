@@ -90,6 +90,7 @@ private:
 	VkDevice device = VK_NULL_HANDLE;
 	bool device_initialized = false;
 	bool inst_initialized = false;
+	bool swappy_prepared = false;
 
 	// Vulkan 1.0 doesn't return version info so we assume this by default until we know otherwise
 	uint32_t vulkan_major = 1;
@@ -171,6 +172,8 @@ private:
 	uint32_t enabled_extension_count = 0;
 	const char *extension_names[MAX_EXTENSIONS];
 	bool enabled_debug_utils = false;
+	uint32_t swappy_required_extension_count = 0;
+	char *swappy_required_extension_names[MAX_EXTENSIONS];
 
 	/**
 	 * True if VK_EXT_debug_report extension is used. VK_EXT_debug_report is deprecated but it is
