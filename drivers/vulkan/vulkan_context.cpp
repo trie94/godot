@@ -1072,11 +1072,14 @@ Error VulkanContext::_create_device() {
 	}
 
 	err = vkCreateDevice(gpu, &sdevice, nullptr, &device);
+#ifdef USE_SWAPPY
+	if (swappy_prepared) {
 	print_verbose("SWAPPY free swappy extension names");
-	for (uint i = 0; i < swappy_required_extension_count; i++) {
-		free(swappy_required_extension_names[i]);
+		for (uint32_t i = 0; i < swappy_required_extension_count; i++) {
+			free(swappy_required_extension_names[i]);
+		}
 	}
-
+#endif
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
 	return OK;
