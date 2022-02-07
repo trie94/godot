@@ -815,18 +815,16 @@ Error VulkanContext::_create_physical_device() {
 		}
 
 	#ifdef USE_SWAPPY
-		// prepare Swappy here
-		swappy_prepared = false;
 		print_verbose("SWAPPY use Swappy");
-		uint32_t swappy_required_extension_count = 0;
+		memset(swappy_required_extension_names, 0, sizeof(swappy_required_extension_names));
+		swappy_prepared = false;
 		SwappyVk_determineDeviceExtensions(
 			gpu, device_extension_count, device_extensions, &swappy_required_extension_count, nullptr
 		);
 		print_verbose("SWAPPY extension count: " + itos(swappy_required_extension_count));
 
 		if (swappy_required_extension_count > 0) {
-			char** swappy_required_extension_names = (char**)malloc(sizeof(char*) * swappy_required_extension_count);
-			for (uint32_t i=0; i<swappy_required_extension_count; i++) {
+			for (uint32_t i = 0; i < swappy_required_extension_count; i++) {
 				swappy_required_extension_names[i] = (char*)malloc(VK_MAX_EXTENSION_NAME_SIZE);
 			}
 			SwappyVk_determineDeviceExtensions(
@@ -836,7 +834,6 @@ Error VulkanContext::_create_physical_device() {
 				for (uint32_t j = 0; j < swappy_required_extension_count; j++) {
 					if (!strcmp(device_extensions[i].extensionName, swappy_required_extension_names[j])) {
 						print_verbose("SWAPPY add swappy extension");
-						// TODO: Free this string later
 						extension_names[enabled_extension_count++] = swappy_required_extension_names[j];
 						print_verbose("SWAPPY adding extension name: " + String(swappy_required_extension_names[j]));
 					}
@@ -845,13 +842,11 @@ Error VulkanContext::_create_physical_device() {
 						for (uint32_t j = 0; j < swappy_required_extension_count; j++) {
 							free(swappy_required_extension_names[j]);
 						}
-						free(swappy_required_extension_names);
 						free(device_extensions);
 						ERR_FAIL_V_MSG(ERR_BUG, "Enabled extension count reaches MAX_EXTENSIONS, BUG");
 					}
 				}
 			}
-			free(swappy_required_extension_names);
 			swappy_prepared = true;
 			print_verbose("SWAPPY swappy prepared");
 		}
@@ -1077,6 +1072,11 @@ Error VulkanContext::_create_device() {
 	}
 
 	err = vkCreateDevice(gpu, &sdevice, nullptr, &device);
+	print_verbose("SWAPPY free swappy extension names");
+	for (uint i = 0; i < swappy_required_extension_count; i++) {
+		free(swappy_required_extension_names[i]);
+	}
+
 	ERR_FAIL_COND_V(err, ERR_CANT_CREATE);
 
 	return OK;
